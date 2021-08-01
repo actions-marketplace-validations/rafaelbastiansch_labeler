@@ -1,0 +1,7 @@
+files:
+  - touched-a-pdf-file:
+    - any: ['*.pdf']
+
+branches:
+  - test:
+    - fix/*
