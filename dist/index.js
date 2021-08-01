@@ -34,21 +34,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.checkGlobs = exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const yaml = __importStar(__nccwpck_require__(1917));
+const matcher_1 = __importDefault(__nccwpck_require__(2239));
 const minimatch_1 = __nccwpck_require__(3973);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const token = core.getInput("repo-token", { required: true });
             const configPath = core.getInput("configuration-path", { required: true });
+            const configPathBranch = core.getInput("configuration-path-branches", { required: true });
             const syncLabels = !!core.getInput("sync-labels", { required: false });
             const prNumber = getPrNumber();
             if (!prNumber) {
                 console.log("Could not get pull request number from context, exiting");
+                return;
+            }
+            const branchName = getBranchName();
+            if (!branchName) {
+                console.log("Could not get branch name from context, exiting");
                 return;
             }
             const client = github.getOctokit(token);
@@ -60,15 +70,40 @@ function run() {
             core.debug(`fetching changed files for pr #${prNumber}`);
             const changedFiles = yield getChangedFiles(client, prNumber);
             const labelGlobs = yield getLabelGlobs(client, configPath);
+            const labelsCopy = [];
+            const labelsToRemoveCopy = [];
+            const branchesFromConfig = labelGlobs.get('branches');
+            if (branchesFromConfig) {
+                for (const item of branchesFromConfig) {
+                    const keys = Object.keys(item);
+                    for (const label of keys) {
+                        const value = item[label];
+                        core.debug(`processing ${label}`);
+                        if (matcher_1.default.isMatch(branchName, value)) {
+                            labelsCopy.push(label);
+                        }
+                        else if (pullRequest.labels.find((l) => l.name === label)) {
+                            labelsToRemoveCopy.push(label);
+                        }
+                    }
+                }
+            }
             const labels = [];
             const labelsToRemove = [];
-            for (const [label, globs] of labelGlobs.entries()) {
-                core.debug(`processing ${label}`);
-                if (checkGlobs(changedFiles, globs)) {
-                    labels.push(label);
-                }
-                else if (pullRequest.labels.find((l) => l.name === label)) {
-                    labelsToRemove.push(label);
+            const filesFromConfig = labelGlobs.get('files');
+            if (filesFromConfig) {
+                for (const item of filesFromConfig) {
+                    const keys = Object.keys(item);
+                    for (const label of keys) {
+                        const globs = item[label];
+                        core.debug(`processing ${label}`);
+                        if (checkGlobs(changedFiles, globs)) {
+                            labels.push(label);
+                        }
+                        else if (pullRequest.labels.find((l) => l.name === label)) {
+                            labelsToRemove.push(label);
+                        }
+                    }
                 }
             }
             if (labels.length > 0) {
@@ -92,12 +127,19 @@ function getPrNumber() {
     }
     return pullRequest.number;
 }
+function getBranchName() {
+    const pullRequest = github.context.payload.pull_request;
+    if (!pullRequest) {
+        return undefined;
+    }
+    return pullRequest.head.ref;
+}
 function getChangedFiles(client, prNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         const listFilesOptions = client.rest.pulls.listFiles.endpoint.merge({
             owner: github.context.repo.owner,
             repo: github.context.repo.repo,
-            pull_number: prNumber,
+            pull_number: prNumber
         });
         const listFilesResponse = yield client.paginate(listFilesOptions);
         const changedFiles = listFilesResponse.map((f) => f.filename);
@@ -8715,6 +8757,142 @@ module.exports = new Type('tag:yaml.org,2002:timestamp', {
 
 /***/ }),
 
+/***/ 2239:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+const escapeStringRegexp = __nccwpck_require__(2997);
+
+const regexpCache = new Map();
+
+function sanitizeArray(input, inputName) {
+	if (!Array.isArray(input)) {
+		switch (typeof input) {
+			case 'string':
+				input = [input];
+				break;
+			case 'undefined':
+				input = [];
+				break;
+			default:
+				throw new TypeError(`Expected '${inputName}' to be a string or an array, but got a type of '${typeof input}'`);
+		}
+	}
+
+	return input.filter(string => {
+		if (typeof string !== 'string') {
+			if (typeof string === 'undefined') {
+				return false;
+			}
+
+			throw new TypeError(`Expected '${inputName}' to be an array of strings, but found a type of '${typeof string}' in the array`);
+		}
+
+		return true;
+	});
+}
+
+function makeRegexp(pattern, options) {
+	options = {
+		caseSensitive: false,
+		...options
+	};
+
+	const cacheKey = pattern + JSON.stringify(options);
+
+	if (regexpCache.has(cacheKey)) {
+		return regexpCache.get(cacheKey);
+	}
+
+	const negated = pattern[0] === '!';
+
+	if (negated) {
+		pattern = pattern.slice(1);
+	}
+
+	pattern = escapeStringRegexp(pattern).replace(/\\\*/g, '[\\s\\S]*');
+
+	const regexp = new RegExp(`^${pattern}$`, options.caseSensitive ? '' : 'i');
+	regexp.negated = negated;
+	regexpCache.set(cacheKey, regexp);
+
+	return regexp;
+}
+
+module.exports = (inputs, patterns, options) => {
+	inputs = sanitizeArray(inputs, 'inputs');
+	patterns = sanitizeArray(patterns, 'patterns');
+
+	if (patterns.length === 0) {
+		return [];
+	}
+
+	const isFirstPatternNegated = patterns[0][0] === '!';
+
+	patterns = patterns.map(pattern => makeRegexp(pattern, options));
+
+	const result = [];
+
+	for (const input of inputs) {
+		// If first pattern is negated we include everything to match user expectation.
+		let matches = isFirstPatternNegated;
+
+		for (const pattern of patterns) {
+			if (pattern.test(input)) {
+				matches = !pattern.negated;
+			}
+		}
+
+		if (matches) {
+			result.push(input);
+		}
+	}
+
+	return result;
+};
+
+module.exports.isMatch = (inputs, patterns, options) => {
+	inputs = sanitizeArray(inputs, 'inputs');
+	patterns = sanitizeArray(patterns, 'patterns');
+
+	if (patterns.length === 0) {
+		return false;
+	}
+
+	return inputs.some(input => {
+		return patterns.every(pattern => {
+			const regexp = makeRegexp(pattern, options);
+			const matches = regexp.test(input);
+			return regexp.negated ? !matches : matches;
+		});
+	});
+};
+
+
+/***/ }),
+
+/***/ 2997:
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = string => {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+
+	// Escape characters with special meaning either inside or outside character sets.
+	// Use a simple backslash escape when it’s always valid, and a \unnnn escape when the simpler form would be disallowed by Unicode patterns’ stricter grammar.
+	return string
+		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+		.replace(/-/g, '\\x2d');
+};
+
+
+/***/ }),
+
 /***/ 3973:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -11709,7 +11887,7 @@ module.exports = eval("require")("encoding");
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("assert");;
+module.exports = require("assert");
 
 /***/ }),
 
@@ -11717,7 +11895,7 @@ module.exports = require("assert");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("events");;
+module.exports = require("events");
 
 /***/ }),
 
@@ -11725,7 +11903,7 @@ module.exports = require("events");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("fs");;
+module.exports = require("fs");
 
 /***/ }),
 
@@ -11733,7 +11911,7 @@ module.exports = require("fs");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("http");;
+module.exports = require("http");
 
 /***/ }),
 
@@ -11741,7 +11919,7 @@ module.exports = require("http");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("https");;
+module.exports = require("https");
 
 /***/ }),
 
@@ -11749,7 +11927,7 @@ module.exports = require("https");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("net");;
+module.exports = require("net");
 
 /***/ }),
 
@@ -11757,7 +11935,7 @@ module.exports = require("net");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("os");;
+module.exports = require("os");
 
 /***/ }),
 
@@ -11765,7 +11943,7 @@ module.exports = require("os");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("path");;
+module.exports = require("path");
 
 /***/ }),
 
@@ -11773,7 +11951,7 @@ module.exports = require("path");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("stream");;
+module.exports = require("stream");
 
 /***/ }),
 
@@ -11781,7 +11959,7 @@ module.exports = require("stream");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("tls");;
+module.exports = require("tls");
 
 /***/ }),
 
@@ -11789,7 +11967,7 @@ module.exports = require("tls");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("url");;
+module.exports = require("url");
 
 /***/ }),
 
@@ -11797,7 +11975,7 @@ module.exports = require("url");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("util");;
+module.exports = require("util");
 
 /***/ }),
 
@@ -11805,7 +11983,7 @@ module.exports = require("util");;
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("zlib");;
+module.exports = require("zlib");
 
 /***/ })
 
@@ -11844,7 +12022,9 @@ module.exports = require("zlib");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
+/******/ 	
+/************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be in strict mode.
 (() => {
