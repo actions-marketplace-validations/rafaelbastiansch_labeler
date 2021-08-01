@@ -16,14 +16,14 @@ const getPullMock = jest.spyOn(gh.rest.pulls, "get");
 
 const yamlFixtures = {
   "only_pdfs.yml": fs.readFileSync("__tests__/fixtures/only_pdfs.yml"),
-  'branches_name.yml': fs.readFileSync("__tests__/fixtures/branches_name.yml")
+  'branches_and_files.yml': fs.readFileSync("__tests__/fixtures/branches_and_files.yml")
 };
 
 afterAll(() => jest.restoreAllMocks());
 
 describe("run", () => {
   it("adds labels to PRs that match our glob patterns", async () => {
-    usingLabelerConfigYaml("branches_name.yml");
+    usingLabelerConfigYaml("branches_and_files.yml");
     mockGitHubResponseChangedFiles("foo.pdf");
 
     await run();
@@ -39,7 +39,7 @@ describe("run", () => {
   });
 
   it("does not add labels to PRs that do not match our glob patterns", async () => {
-    usingLabelerConfigYaml("branches_name.yml");
+    usingLabelerConfigYaml("branches_and_files.yml");
     mockGitHubResponseChangedFiles("foo.txt");
 
     await run();
@@ -59,7 +59,7 @@ describe("run", () => {
       .spyOn(core, "getInput")
       .mockImplementation((name: string, ...opts) => mockInput[name]);
 
-    usingLabelerConfigYaml("branches_name.yml");
+    usingLabelerConfigYaml("branches_and_files.yml");
     mockGitHubResponseChangedFiles("foo.txt");
     getPullMock.mockResolvedValue(<any>{
       data: {
@@ -90,7 +90,7 @@ describe("run", () => {
       .spyOn(core, "getInput")
       .mockImplementation((name: string, ...opts) => mockInput[name]);
 
-    usingLabelerConfigYaml("branches_name.yml");
+    usingLabelerConfigYaml("branches_and_files.yml");
     mockGitHubResponseChangedFiles("foo.txt");
     getPullMock.mockResolvedValue(<any>{
       data: {
@@ -105,7 +105,7 @@ describe("run", () => {
   });
 
   it('testing branch names', async () => {
-    usingLabelerConfigYaml("branches_name.yml");
+    usingLabelerConfigYaml("branches_and_files.yml");
 
     await run();
   

@@ -1,4 +1,4 @@
-name: 'Labeler'
+name: 'Labeler-fork-test'
 description: 'Automatically label new pull requests based on the paths of files being changed'
 author: 'GitHub'
 inputs:
@@ -7,10 +7,6 @@ inputs:
   configuration-path:
     description: 'The path for the label configurations'
     default: '.github/labeler.yml'
-    required: false
-  configuration-path-branches:
-    description: 'The path for the label configurations branches'
-    default: '.github/branches-labeler.yml'
     required: false
   sync-labels:
     description: 'Whether or not to remove labels when matching files are reverted'

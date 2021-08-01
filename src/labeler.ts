@@ -25,6 +25,12 @@ export async function run() {
       return;
     }
 
+    const branchName = getBranchName()
+    if (!branchName) {
+      console.log("Could not get branch name from context, exiting");
+      return;
+    }
+
     const client: ClientType = github.getOctokit(token);
 
     const { data: pullRequest } = await client.rest.pulls.get({
@@ -40,23 +46,16 @@ export async function run() {
       configPath
     );
 
-    const labelBranches: Map<string, Array<any>> = await getLabelGlobs(
-      client,
-      configPathBranch
-    );
-
-    const branchName = getBranchName()
-
     const labelsCopy: string[] = [];
     const labelsToRemoveCopy: string[] = [];
-    const fodasse = labelBranches.get('branches')
-    if (fodasse && branchName) {
-      for (const item of fodasse) {
+    const branchesFromConfig = labelGlobs.get('branches')
+    
+    if (branchesFromConfig) {
+      for (const item of branchesFromConfig) {
         const keys = Object.keys(item)
 
         for (const label of keys) {
           const value = item[label]
-          console.log('value', item[label])
           core.debug(`processing ${label}`);
           if (matcher.isMatch(branchName, value)) {
             labelsCopy.push(label);
@@ -69,9 +68,9 @@ export async function run() {
     
     const labels: string[] = [];
     const labelsToRemove: string[] = [];
-    const filesTeste = labelBranches.get('files')
-    if (filesTeste) {
-      for (const item of filesTeste) {
+    const filesFromConfig = labelGlobs.get('files')
+    if (filesFromConfig) {
+      for (const item of filesFromConfig) {
         const keys = Object.keys(item)
         for (const label of keys) {
           const globs = item[label]
