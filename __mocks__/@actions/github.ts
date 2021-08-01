@@ -2,7 +2,10 @@ export const context = {
   payload: {
     pull_request: {
       number: 123,
-    },
+      head: {
+        ref: 'fix/changed_file'
+      }
+    }
   },
   repo: {
     owner: "monalisa",

@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as yaml from "js-yaml";
+import matcher from 'matcher'
 import { Minimatch, IMinimatch } from "minimatch";
 
 interface MatchConfig {
@@ -15,11 +16,18 @@ export async function run() {
   try {
     const token = core.getInput("repo-token", { required: true });
     const configPath = core.getInput("configuration-path", { required: true });
+    const configPathBranch = core.getInput("configuration-path-branches", { required: true });
     const syncLabels = !!core.getInput("sync-labels", { required: false });
 
     const prNumber = getPrNumber();
     if (!prNumber) {
       console.log("Could not get pull request number from context, exiting");
+      return;
+    }
+
+    const branchName = getBranchName()
+    if (!branchName) {
+      console.log("Could not get branch name from context, exiting");
       return;
     }
 
@@ -38,14 +46,42 @@ export async function run() {
       configPath
     );
 
+    const labelsCopy: string[] = [];
+    const labelsToRemoveCopy: string[] = [];
+    const branchesFromConfig = labelGlobs.get('branches')
+    
+    if (branchesFromConfig) {
+      for (const item of branchesFromConfig) {
+        const keys = Object.keys(item)
+
+        for (const label of keys) {
+          const value = item[label]
+          core.debug(`processing ${label}`);
+          if (matcher.isMatch(branchName, value)) {
+            labelsCopy.push(label);
+          } else if (pullRequest.labels.find((l) => l.name === label)) {
+            labelsToRemoveCopy.push(label);
+          }
+        }
+      }
+    }
+    
     const labels: string[] = [];
     const labelsToRemove: string[] = [];
-    for (const [label, globs] of labelGlobs.entries()) {
-      core.debug(`processing ${label}`);
-      if (checkGlobs(changedFiles, globs)) {
-        labels.push(label);
-      } else if (pullRequest.labels.find((l) => l.name === label)) {
-        labelsToRemove.push(label);
+    const filesFromConfig = labelGlobs.get('files')
+    if (filesFromConfig) {
+      for (const item of filesFromConfig) {
+        const keys = Object.keys(item)
+        for (const label of keys) {
+          const globs = item[label]
+          core.debug(`processing ${label}`);
+    
+          if (checkGlobs(changedFiles, globs)) {
+            labels.push(label);
+          } else if (pullRequest.labels.find((l) => l.name === label)) {
+            labelsToRemove.push(label);
+          }
+        }
       }
     }
 
@@ -71,6 +107,15 @@ function getPrNumber(): number | undefined {
   return pullRequest.number;
 }
 
+function getBranchName(): string | undefined {
+  const pullRequest = github.context.payload.pull_request;
+  if (!pullRequest) {
+    return undefined;
+  }
+
+  return pullRequest.head.ref;
+}
+
 async function getChangedFiles(
   client: ClientType,
   prNumber: number
@@ -78,7 +123,7 @@ async function getChangedFiles(
   const listFilesOptions = client.rest.pulls.listFiles.endpoint.merge({
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
-    pull_number: prNumber,
+    pull_number: prNumber
   });
 
   const listFilesResponse = await client.paginate(listFilesOptions);
