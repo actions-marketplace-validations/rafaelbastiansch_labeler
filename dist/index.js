@@ -88,6 +88,7 @@ function run() {
                     }
                 }
             }
+            console.log('labelsCopy', labelsCopy);
             const labels = [];
             const labelsToRemove = [];
             const filesFromConfig = labelGlobs.get('files');
@@ -106,11 +107,16 @@ function run() {
                     }
                 }
             }
-            if (labels.length > 0) {
-                yield addLabels(client, prNumber, labels);
+            console.log('changedFiles', changedFiles);
+            console.log('filesFromConfig', filesFromConfig);
+            console.log('labels', labels);
+            const mergedLabels = [...labelsCopy, ...labels];
+            const mergedLabelsToRemove = [...labelsToRemoveCopy, ...labelsToRemove];
+            if (mergedLabels.length > 0) {
+                yield addLabels(client, prNumber, mergedLabels);
             }
-            if (syncLabels && labelsToRemove.length) {
-                yield removeLabels(client, prNumber, labelsToRemove);
+            if (syncLabels && mergedLabelsToRemove.length) {
+                yield removeLabels(client, prNumber, mergedLabelsToRemove);
             }
         }
         catch (error) {
