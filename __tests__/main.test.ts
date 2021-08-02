@@ -34,7 +34,7 @@ describe("run", () => {
       owner: "monalisa",
       repo: "helloworld",
       issue_number: 123,
-      labels: ["touched-a-pdf-file"],
+      labels: ["test", "touched-a-pdf-file"],
     });
   });
 
@@ -69,7 +69,7 @@ describe("run", () => {
 
     await run();
 
-    expect(addLabelsMock).toHaveBeenCalledTimes(0);
+    expect(addLabelsMock).toHaveBeenCalledTimes(1);
     expect(removeLabelMock).toHaveBeenCalledTimes(1);
     expect(removeLabelMock).toHaveBeenCalledWith({
       owner: "monalisa",
@@ -100,12 +100,13 @@ describe("run", () => {
 
     await run();
 
-    expect(addLabelsMock).toHaveBeenCalledTimes(0);
+    expect(addLabelsMock).toHaveBeenCalledTimes(1);
     expect(removeLabelMock).toHaveBeenCalledTimes(0);
   });
 
   it('testing branch names', async () => {
     usingLabelerConfigYaml("branches_and_files.yml");
+    mockGitHubResponseChangedFiles("foo.pdf");
 
     await run();
   

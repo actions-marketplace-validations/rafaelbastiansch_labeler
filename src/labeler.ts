@@ -65,6 +65,8 @@ export async function run() {
         }
       }
     }
+
+    console.log('labelsCopy', labelsCopy)
     
     const labels: string[] = [];
     const labelsToRemove: string[] = [];
@@ -85,12 +87,21 @@ export async function run() {
       }
     }
 
-    if (labels.length > 0) {
-      await addLabels(client, prNumber, labels);
+    
+    console.log('changedFiles', changedFiles)
+    console.log('filesFromConfig', filesFromConfig)
+
+    console.log('labels', labels)
+
+    const mergedLabels = [...labelsCopy, ...labels]
+    const mergedLabelsToRemove = [...labelsToRemoveCopy, ...labelsToRemove]
+
+    if (mergedLabels.length > 0) {
+      await addLabels(client, prNumber, mergedLabels);
     }
 
-    if (syncLabels && labelsToRemove.length) {
-      await removeLabels(client, prNumber, labelsToRemove);
+    if (syncLabels && mergedLabelsToRemove.length) {
+      await removeLabels(client, prNumber, mergedLabelsToRemove);
     }
   } catch (error) {
     core.error(error);
