@@ -64,8 +64,6 @@ export async function run() {
         }
       }
     }
-
-    console.log('labelsCopy', labelsCopy)
     
     const labels: string[] = [];
     const labelsToRemove: string[] = [];
@@ -85,12 +83,6 @@ export async function run() {
         }
       }
     }
-
-    
-    console.log('changedFiles', changedFiles)
-    console.log('filesFromConfig', filesFromConfig)
-
-    console.log('labels', labels)
 
     const mergedLabels = [...labelsCopy, ...labels]
     const mergedLabelsToRemove = [...labelsToRemoveCopy, ...labelsToRemove]
