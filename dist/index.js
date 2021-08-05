@@ -87,7 +87,6 @@ function run() {
                     }
                 }
             }
-            console.log('labelsCopy', labelsCopy);
             const labels = [];
             const labelsToRemove = [];
             const filesFromConfig = labelGlobs.get('files');
@@ -106,9 +105,6 @@ function run() {
                     }
                 }
             }
-            console.log('changedFiles', changedFiles);
-            console.log('filesFromConfig', filesFromConfig);
-            console.log('labels', labels);
             const mergedLabels = [...labelsCopy, ...labels];
             const mergedLabelsToRemove = [...labelsToRemoveCopy, ...labelsToRemove];
             if (mergedLabels.length > 0) {
