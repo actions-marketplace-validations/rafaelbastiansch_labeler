@@ -1,6 +1,6 @@
-name: 'Labeler-fork-test'
-description: 'Automatically label new pull requests based on the paths of files being changed'
-author: 'GitHub'
+name: 'Labeler-plus'
+description: 'Automatically label new pull requests based on the paths of files being changed and branch name'
+author: 'Rafael Bastiansch'
 inputs:
   repo-token:
     description: 'The GITHUB_TOKEN secret'
