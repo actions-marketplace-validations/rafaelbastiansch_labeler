@@ -1,15 +1,16 @@
-# Pull Request Labeler
+# Pull Request Labeler Plus
 
 <p align="left">
-  <a href="https://github.com/actions/labeler/actions?query=workflow%3A%22Build+%26+Test%22++">
-    <img alt="build and test status" src="https://github.com/actions/labeler/actions/workflows/build_test.yml/badge.svg">
+  <a href="https://github.com/rafaelbastiansch/labeler/actions?query=workflow%3A%22Build+%26+Test%22++">
+    <img alt="build and test status" src="https://github.com/rafaelbastiansch/labeler/actions/workflows/build_test.yml/badge.svg">
   </a>
-  <a href="https://david-dm.org/actions/labeler">
-    <img alt="dependencies" src="https://status.david-dm.org/gh/actions/labeler.svg">
+  <a href="https://david-dm.org/rafaelbastiansch/labeler">
+    <img alt="dependencies" src="https://status.david-dm.org/gh/rafaelbastiansch/labeler.svg">
   </a>
 </p>
 
-Automatically label new pull requests based on the paths of files being changed.
+Automatically label new pull requests based on the paths of files being changed and branch name.
+This is a fork of [Labeler](https://github.com/actions/labeler)
 
 ## Usage
 
@@ -51,37 +52,54 @@ From a boolean logic perspective, top-level match objects are `OR`-ed together a
 
 ```yml
 # Add 'label1' to any changes within 'example' folder or any subfolders
-label1:
-- example/**/*
+files:
+  label1:
+    - example/**/*
 
 # Add 'label2' to any file changes within 'example2' folder
-label2: example2/*
+files:
+  label2: example2/*
+
+# Can be used same way for branches
+branches:
+  label1:
+    - example/**/*
+
+branches:
+  label2: example2/*
 ```
 
 #### Common Examples
 
 ```yml
 # Add 'repo' label to any root file changes
-repo:
-- '*'
+files:
+  repo:
+  - '*'
 
 # Add '@domain/core' label to any change within the 'core' package
-@domain/core:
-- package/core/*
-- package/core/**/*
+files:
+  @domain/core:
+  - package/core/*
+  - package/core/**/*
 
 # Add 'test' label to any change to *.spec.js files within the source dir
-test:
-- src/**/*.spec.js
+files:
+  test:
+  - src/**/*.spec.js
 
 # Add 'source' label to any change to src files within the source dir EXCEPT for the docs sub-folder
-source:
-- any: ['src/**/*', '!src/docs/*']
+files:
+  source:
+  - any: ['src/**/*', '!src/docs/*']
 
 # Add 'frontend` label to any change to *.js files as long as the `main.js` hasn't changed
-frontend:
-- any: ['src/**/*.js']
-  all: ['!src/main.js']
+files:
+  frontend:
+  - any: ['src/**/*.js']
+    all: ['!src/main.js']
+
+# can be used same structure for branches using the key 'branches'
 ```
 
 ### Create Workflow
